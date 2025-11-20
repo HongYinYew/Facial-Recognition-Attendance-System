@@ -1,0 +1,75 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container" style="max-width: 600px;">
+    <div class="card shadow">
+        <div class="card-header"><h4>Edit Event: {{ event.name }}</h4></div>
+        <div class="card-body">
+            
+            <form id="editEventForm">
+                <div class="mb-3">
+                    <label>Event Name</label>
+                    <input type="text" name="name" value="{{ event.name }}" class="form-control" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label>Venue</label>
+                    <select name="venue" class="form-select">
+                        <option value="{{ event.venue }}" selected>{{ event.venue }} (Current)</option>
+                        <option value="Sanctuary">Sanctuary</option>
+                        <option value="Parish">Parish</option>
+                        <option value="Chapel 1">Chapel 1</option>
+                        <option value="Chapel 2">Chapel 2</option>
+                        <option value="Canteen">Canteen</option>
+                        <option value="BB Room">BB Room</option>
+                        <option value="Outdoor">Outdoor</option>
+                        <option value="Others">Others</option>
+                    </select>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col">
+                        <label>Date</label>
+                        <input type="date" name="date" value="{{ event.start_time.strftime('%Y-%m-%d') }}" class="form-control" required>
+                    </div>
+                    <div class="col">
+                        <label>Start Time</label>
+                        <input type="time" name="time" value="{{ event.start_time.strftime('%H:%M') }}" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label>Duration (Minutes)</label>
+                    <input type="number" name="duration_min" value="{{ duration }}" class="form-control" required>
+                </div>
+
+                <button type="submit" class="btn btn-success w-100 mt-2">Update Event</button>
+                <a href="/admin" class="btn btn-secondary w-100 mt-2">Cancel</a>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('editEventForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        // Use the fetch API to send data so we can catch errors
+        const response = await fetch('/api/edit_event/{{ event.id }}', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert("Event Updated Successfully!");
+            window.location.href = "/admin";
+        } else {
+            // Show the clash error
+            alert("Error: " + result.message);
+        }
+    });
+</script>
+{% endblock %}

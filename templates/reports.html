@@ -1,0 +1,64 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Generate Attendance Report</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Select filters below to download an Excel report. Leave filters empty to download all records.</p>
+                
+                <form id="reportForm">
+                    <div class="mb-3">
+                        <label for="eventSelect" class="form-label">Filter by Event:</label>
+                        <select id="eventSelect" class="form-select">
+                            <option value="">-- All Events --</option>
+                            {% for e in events %}
+                            <option value="{{ e.id }}">{{ e.name }} ({{ e.start_time.strftime('%Y-%m-%d') }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="userSelect" class="form-label">Filter by Specific User:</label>
+                        <select id="userSelect" class="form-select">
+                            <option value="">-- All Users --</option>
+                            {% for u in users %}
+                            <option value="{{ u.id }}">{{ u.name }} ({{ u.english_name }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <hr>
+
+                    <div class="d-grid gap-2">
+                        <button type="button" id="downloadBtn" class="btn btn-success btn-lg">
+                            Download Excel Report
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('downloadBtn').addEventListener('click', function() {
+        const eventId = document.getElementById('eventSelect').value;
+        const userId = document.getElementById('userSelect').value;
+
+        // We build the URL manually to avoid sending empty strings to the integer API
+        let url = '/api/download_report?';
+        
+        const params = [];
+        if (eventId) params.push('event_id=' + eventId);
+        if (userId) params.push('user_id=' + userId);
+
+        // Redirect browser to the download URL
+        window.location.href = url + params.join('&');
+    });
+</script>
+
+{% endblock %}

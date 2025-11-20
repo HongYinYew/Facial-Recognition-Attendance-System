@@ -1,0 +1,96 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="row">
+    <div class="col-12 d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold">{{ event.name }}</h2>
+            <p class="text-muted mb-0"><i class="fa-solid fa-location-dot"></i> {{ event.venue }} | <i class="fa-regular fa-clock"></i> {{ event.start_time.strftime('%H:%M') }}</p>
+        </div>
+        <div class="badge bg-success bg-opacity-10 text-success p-2 border border-success">
+            <i class="fa-solid fa-wifi"></i> Live Sync Active
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white">
+        <div class="row">
+            <div class="col fw-bold">Participant Name</div>
+            <div class="col fw-bold">English Name</div>
+            <div class="col fw-bold text-center">Action</div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td class="px-4">{{ u.name }}</td>
+                        <td>{{ u.english_name }}</td>
+                        <td class="text-center">
+                            <div class="form-check d-inline-block">
+                                <input class="form-check-input att-check p-2" 
+                                       type="checkbox" 
+                                       data-uid="{{ u.id }}" 
+                                       id="chk_{{ u.id }}"
+                                       style="cursor: pointer; border: 2px solid #dee2e6;"
+                                       {% if u.id in attended_ids %}checked{% endif %}>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const eventId = "{{ event.id }}";
+    
+    // 1. Handle Manual Clicks (Send to Server)
+    document.querySelectorAll('.att-check').forEach(box => {
+        box.addEventListener('change', async function() {
+            const userId = this.dataset.uid;
+            const action = this.checked ? 'mark' : 'unmark';
+            
+            const formData = new FormData();
+            formData.append('user_id', userId);
+            formData.append('event_id', eventId);
+            formData.append('action', action);
+            
+            try {
+                await fetch('/api/mark_manual', { method: 'POST', body: formData });
+            } catch(e) { console.error(e); alert("Sync Failed"); }
+        });
+    });
+
+    // 2. Auto-Refresh Logic (Fetch from Server)
+    async function syncAttendance() {
+        try {
+            const res = await fetch(`/api/live_attendance/${eventId}`);
+            const data = await res.json();
+            const attendedIds = data.attended_ids; // List of UUIDs
+
+            // Iterate through all checkboxes
+            document.querySelectorAll('.att-check').forEach(box => {
+                const uid = box.dataset.uid;
+                // If ID is in the list from server, check it. If not, uncheck it.
+                if (attendedIds.includes(uid)) {
+                    if (!box.checked) box.checked = true;
+                } else {
+                    if (box.checked) box.checked = false;
+                }
+            });
+        } catch (e) {
+            console.error("Auto-sync error:", e);
+        }
+    }
+
+    // Run sync every 3 seconds
+    setInterval(syncAttendance, 3000);
+</script>
+
+{% endblock %}

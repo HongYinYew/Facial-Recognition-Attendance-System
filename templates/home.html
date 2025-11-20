@@ -1,0 +1,111 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="row mb-3">
+    <div class="col-12">
+        <h2 class="fw-bold">Dashboard Overview</h2>
+        <p class="text-muted">System statistics for {{ request.headers.get('date') }}</p>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card p-3 h-100 border-start border-4 border-primary">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <p class="text-muted mb-1">Total Members</p>
+                    <h3 class="fw-bold">{{ total_members }}</h3>
+                </div>
+                <div class="bg-primary bg-opacity-10 p-3 rounded-circle text-primary">
+                    <i class="fa-solid fa-users fa-xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-3 h-100 border-start border-4 border-success">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <p class="text-muted mb-1">Marked Present Today</p>
+                    <h3 class="fw-bold">{{ attendance_today }}</h3>
+                </div>
+                <div class="bg-success bg-opacity-10 p-3 rounded-circle text-success">
+                    <i class="fa-solid fa-check-double fa-xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-3 h-100 border-start border-4 border-warning">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <p class="text-muted mb-1">Upcoming Events</p>
+                    <h3 class="fw-bold">{{ upcoming_events }}</h3>
+                </div>
+                <div class="bg-warning bg-opacity-10 p-3 rounded-circle text-warning">
+                    <i class="fa-solid fa-clock fa-xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fa-solid fa-chart-column me-2"></i>Attendance vs Total
+            </div>
+            <div class="card-body">
+                <canvas id="attendanceChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="fa-solid fa-chart-pie me-2"></i>Event Status
+            </div>
+            <div class="card-body">
+                <canvas id="eventChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. Bar Chart: Members vs Present
+    const ctx1 = document.getElementById('attendanceChart').getContext('2d');
+    new Chart(ctx1, {
+        type: 'bar',
+        data: {
+            labels: ['Total Members', 'Present Today'],
+            datasets: [{
+                label: 'Users',
+                data: ["{{ total_members }}", "{{ attendance_today }}"],
+                backgroundColor: ['#e9ecef', '#198754'],
+                borderRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+
+    // 2. Doughnut Chart: Events
+    const ctx2 = document.getElementById('eventChart').getContext('2d');
+    new Chart(ctx2, {
+        type: 'doughnut',
+        data: {
+            labels: ['Upcoming', 'Passed'],
+            datasets: [{
+                data: ["{{ upcoming_events }}", "{{ passed_events }}"],
+                backgroundColor: ['#ffc107', '#6c757d'],
+                hoverOffset: 4
+            }]
+        }
+    });
+</script>
+
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="row">
+    <div class="col-12 mb-4">
+        <h2><i class="fa-solid fa-screwdriver-wrench"></i> Admin Management</h2>
+        <div class="d-flex gap-2">
+            <a href="/events" class="btn btn-primary">Create New Event</a>
+            <a href="/register" class="btn btn-success">Register New User</a>
+            <a href="/admin/enroll_face" class="btn btn-warning text-dark">
+                <i class="fa-solid fa-face-viewfinder"></i> Enroll Facial Data
+            </a>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">Manage Users</h5>
+            </div>
+            <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
+                <table class="table table-striped mb-0">
+                    <thead><tr><th>Name</th><th>Eng Name</th><th>Action</th></tr></thead>
+                    <tbody>
+                        {% for u in users %}
+                        <tr>
+                            <td>{{ u.name }}</td>
+                            <td>{{ u.english_name }}</td>
+                            <td>
+                                <a href="/admin/edit_user/{{ u.id }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">Manage Events (Recent)</h5>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-striped mb-0">
+                    <thead><tr><th>Event</th><th>Date</th><th>Action</th></tr></thead>
+                    <tbody>
+                        {% for e in events %}
+                        <tr>
+                            <td>{{ e.name }}</td>
+                            <td>{{ e.start_time.strftime('%Y-%m-%d') }}</td>
+                            <td>
+                                <a href="/admin/edit_event/{{ e.id }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

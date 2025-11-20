@@ -1,0 +1,81 @@
+{% extends "layout.html" %}
+{% block content %}
+<h2>Events Dashboard</h2>
+<hr>
+<div class="row">
+    <div class="col-md-6">
+        <h4>Create Event</h4>
+        <form id="eventForm">
+            <div class="mb-2">
+                <label>Event Name</label>
+                <input type="text" name="name" class="form-control" required>
+            </div>
+            <div class="row">
+                <div class="col">
+                    <label>Date</label>
+                    <input type="date" name="date" class="form-control" required>
+                </div>
+                <div class="col">
+                    <label>Time</label>
+                    <input type="time" name="time" class="form-control" required>
+                </div>
+            </div>
+            <div class="mb-2">
+                <label>Duration (Minutes)</label>
+                <input type="number" name="duration_min" class="form-control" value="60">
+            </div>
+            <div class="mb-2">
+                <label>Venue</label>
+                <select name="venue" class="form-select" id="venueSelect">
+                    <option>Sanctuary</option>
+                    <option>Parish</option>
+                    <option>Chapel 1</option>
+                    <option>Chapel 2</option>
+                    <option>Canteen</option>
+                    <option>BB Room</option>
+                    <option>Outdoor</option>
+                    <option>Others</option>
+                </select>
+            </div>
+            <div class="mb-2 d-none" id="otherInput">
+                <label>Specify Other Venue</label>
+                <input type="text" name="venue_other" class="form-control">
+            </div>
+            <button type="submit" class="btn btn-primary mt-2">Create Event</button>
+        </form>
+    </div>
+    
+    <div class="col-md-6">
+        <h4>Event List (Click to Launch)</h4>
+        <div class="list-group">
+            {% for e in events %}
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>{{e.name}}</strong><br>
+                    <small>{{e.venue}} | {{e.start_time}}</small>
+                </div>
+                <div>
+                    <a href="/manual/{{e.id}}" class="btn btn-sm btn-secondary">Manual</a>
+                    <a href="/attendance/{{e.id}}" class="btn btn-sm btn-success">Launch Camera</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('venueSelect').addEventListener('change', function() {
+        document.getElementById('otherInput').classList.toggle('d-none', this.value !== 'Others');
+    });
+
+    document.getElementById('eventForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        const response = await fetch('/api/create_event', { method: 'POST', body: formData });
+        const result = await response.json();
+        if(result.status === 'success') location.reload();
+        else alert(result.message);
+    });
+</script>
+{% endblock %}

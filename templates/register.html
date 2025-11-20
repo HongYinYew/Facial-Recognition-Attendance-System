@@ -1,0 +1,181 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h4 class="mb-0"><i class="fa-solid fa-user-plus text-primary me-2"></i>Register New Member</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <h6 class="fw-bold text-muted">1. Capture Photo</h6>
+                        
+                        <div class="input-group mb-2">
+                            <label class="input-group-text"><i class="fa-solid fa-camera"></i></label>
+                            <select id="cameraSelect" class="form-select"></select>
+                        </div>
+
+                        <div class="video-wrapper mb-2" style="position: relative; background: #000; border-radius: 8px; overflow: hidden;">
+                            <video id="video" autoplay playsinline style="width: 100%; display: block;"></video>
+                            <canvas id="canvas" class="d-none"></canvas>
+                        </div>
+
+                        <button type="button" id="captureBtn" class="btn btn-dark w-100 mb-3">
+                            <i class="fa-solid fa-camera-retro"></i> Capture Face
+                        </button>
+
+                        <div id="previewContainer" class="d-none text-center">
+                            <p class="text-success fw-bold mb-1"><i class="fa-solid fa-check-circle"></i> Image Captured:</p>
+                            <img id="preview" class="img-fluid rounded border border-success" style="max-height: 150px;">
+                            <button type="button" id="retakeBtn" class="btn btn-sm btn-outline-secondary mt-2">Retake</button>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <h6 class="fw-bold text-muted">2. Member Details</h6>
+                        <form id="regForm">
+                            <div class="mb-3">
+                                <label class="form-label">Full Name</label>
+                                <input type="text" name="name" class="form-control" placeholder="e.g. Tan Ah Kau" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">English / Nickname</label>
+                                <input type="text" name="english_name" class="form-control" placeholder="e.g. Alex" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Phone Number</label>
+                                <input type="text" name="phone" class="form-control" placeholder="e.g. 012-3456789" required>
+                            </div>
+                            
+                            <div class="alert alert-info py-2 small">
+                                <i class="fa-solid fa-info-circle"></i> Face photo is optional but recommended for auto-attendance.
+                            </div>
+
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fa-solid fa-save"></i> Register User
+                                </button>
+                            </div>
+                        </form>
+
+                        <div id="messageArea" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const cameraSelect = document.getElementById('cameraSelect');
+    const preview = document.getElementById('preview');
+    const previewContainer = document.getElementById('previewContainer');
+    
+    let currentStream = null;
+    let imageBlob = null; // This stores the captured file
+
+    // 1. LIST CAMERAS
+    async function getCameras() {
+        try {
+            await navigator.mediaDevices.getUserMedia({ video: true }); // Request permission
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+            
+            cameraSelect.innerHTML = "";
+            videoDevices.forEach((device, index) => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.text = device.label || `Camera ${index + 1}`;
+                cameraSelect.appendChild(option);
+            });
+            
+            if (videoDevices.length > 0) startStream(videoDevices[0].deviceId);
+            
+        } catch(err) {
+            console.error(err);
+            alert("Could not access camera. Please allow permissions.");
+        }
+    }
+
+    // 2. START CAMERA STREAM
+    async function startStream(deviceId) {
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+        }
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { deviceId: { exact: deviceId } } 
+            });
+            currentStream = stream;
+            video.srcObject = stream;
+            video.classList.remove('d-none');
+            previewContainer.classList.add('d-none');
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    // Switch Camera Listener
+    cameraSelect.addEventListener('change', (e) => startStream(e.target.value));
+
+    // 3. CAPTURE IMAGE
+    document.getElementById('captureBtn').addEventListener('click', () => {
+        if (!video.videoWidth) return;
+
+        // Draw to hidden canvas
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+
+        // Show Preview
+        preview.src = canvas.toDataURL('image/jpeg');
+        previewContainer.classList.remove('d-none');
+        video.classList.add('d-none'); // Hide video to show "Frozen" state
+
+        // Create Blob for upload
+        canvas.toBlob(blob => { imageBlob = blob; }, 'image/jpeg', 0.8);
+    });
+
+    // 4. RETAKE BUTTON
+    document.getElementById('retakeBtn').addEventListener('click', () => {
+        previewContainer.classList.add('d-none');
+        video.classList.remove('d-none');
+        imageBlob = null;
+    });
+
+    // 5. SUBMIT FORM
+    document.getElementById('regForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msgArea = document.getElementById('messageArea');
+        msgArea.innerHTML = '<div class="alert alert-secondary">Registering...</div>';
+
+        const formData = new FormData(e.target);
+        if (imageBlob) {
+            formData.append('image_file', imageBlob, 'face.jpg');
+        }
+
+        try {
+            const res = await fetch('/api/register_user', { method: 'POST', body: formData });
+            const data = await res.json();
+
+            if(data.status === 'success') {
+                msgArea.innerHTML = `<div class="alert alert-success">Success! User UUID: <b>${data.uuid}</b></div>`;
+                e.target.reset(); // Clear form
+                document.getElementById('retakeBtn').click(); // Reset camera
+            } else {
+                msgArea.innerHTML = `<div class="alert alert-danger">Error: ${data.message}</div>`;
+            }
+        } catch (err) {
+            msgArea.innerHTML = `<div class="alert alert-danger">Network Error</div>`;
+        }
+    });
+
+    // Initialize
+    getCameras();
+</script>
+
+{% endblock %}

@@ -1,0 +1,142 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<style>
+    /* Log Styling */
+    .log-container {
+        height: 400px;
+        overflow-y: auto;
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+    }
+    .log-entry {
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+        transition: background-color 0.5s ease;
+    }
+    /* The Green Flash Animation */
+    .log-success-flash {
+        background-color: #d1e7dd !important; /* Bootstrap Success Green */
+        border-left: 5px solid #198754;
+    }
+</style>
+
+<div class="row">
+    <div class="col-md-8 text-center">
+        <h3 class="fw-bold">{{ event.name }}</h3>
+        <p class="text-muted">Face & QR Scanner</p>
+        
+        <div class="input-group mb-3 w-50 mx-auto">
+            <label class="input-group-text"><i class="fa-solid fa-camera"></i></label>
+            <select id="cameraSelect" class="form-select"></select>
+        </div>
+
+        <div class="video-wrapper mb-3" style="max-width: 640px; margin: 0 auto;">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas" class="d-none"></canvas>
+        </div>
+
+        <div id="status-msg" class="alert alert-secondary fw-bold">Initializing...</div>
+    </div>
+
+    <div class="col-md-4">
+        <h5 class="fw-bold"><i class="fa-solid fa-list-check"></i> Live Log</h5>
+        <div id="attendanceLog" class="log-container">
+            <div class="text-muted text-center p-3 small">Waiting for scans...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const video = document.getElementById('video');
+    const cameraSelect = document.getElementById('cameraSelect');
+    const statusMsg = document.getElementById('status-msg');
+    const logContainer = document.getElementById('attendanceLog');
+    const eventId = "{{ event.id }}";
+    let currentStream = null;
+
+    // 1. Camera Selection (Same as before)
+    async function getCameras() {
+        try {
+            await navigator.mediaDevices.getUserMedia({ video: true });
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+            cameraSelect.innerHTML = "";
+            videoDevices.forEach((device, index) => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.text = device.label || `Camera ${index + 1}`;
+                cameraSelect.appendChild(option);
+            });
+            if (videoDevices.length > 0) startStream(videoDevices[0].deviceId);
+        } catch(err) { console.error(err); }
+    }
+
+    async function startStream(deviceId) {
+        if (currentStream) currentStream.getTracks().forEach(track => track.stop());
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } });
+        currentStream = stream;
+        video.srcObject = stream;
+    }
+    cameraSelect.addEventListener('change', (e) => startStream(e.target.value));
+    getCameras();
+
+    // 2. Scan Loop
+    setInterval(() => {
+        if (!video.videoWidth) return;
+        const canvas = document.getElementById('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        
+        canvas.toBlob(async (blob) => {
+            if(!blob) return;
+            const formData = new FormData();
+            formData.append('event_id', eventId);
+            formData.append('image_file', blob, 'snap.jpg');
+            
+            try {
+                const res = await fetch('/api/recognize_attendance', { method: 'POST', body: formData });
+                const data = await res.json();
+                
+                // Update Status Bar
+                statusMsg.innerText = data.message;
+                statusMsg.className = "alert fw-bold " + (data.status === 'success' ? 'alert-success' : 'alert-secondary');
+
+                // 3. HANDLE SUCCESS POPUP LOG
+                if (data.status === 'success') {
+                    addLogEntry(data.user_name);
+                }
+
+            } catch(e) {}
+        }, 'image/jpeg', 0.7);
+    }, 1500);
+
+    function addLogEntry(name) {
+        // Remove "Waiting" text if exists
+        if (logContainer.innerText.includes("Waiting")) logContainer.innerHTML = "";
+
+        const time = new Date().toLocaleTimeString();
+        
+        // Create Entry Div
+        const div = document.createElement('div');
+        div.className = "log-entry log-success-flash"; // Start Green
+        div.innerHTML = `
+            <div class="d-flex justify-content-between">
+                <strong>${name}</strong>
+                <small>${time}</small>
+            </div>
+            <div class="small text-success"><i class="fa-solid fa-check"></i> Checked In</div>
+        `;
+
+        // Prepend (Add to top)
+        logContainer.prepend(div);
+
+        // Remove Green Class after 3 seconds
+        setTimeout(() => {
+            div.classList.remove('log-success-flash');
+        }, 3000);
+    }
+</script>
+{% endblock %}
