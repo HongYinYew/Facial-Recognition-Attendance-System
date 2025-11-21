@@ -1,64 +1,152 @@
 {% extends "layout.html" %}
 {% block content %}
 
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card shadow-sm">
-            <div class="card-header bg-primary text-white">
-                <h4 class="mb-0">Generate Attendance Report</h4>
+<div class="row">
+    <!-- Left Sidebar: Filters -->
+    <div class="col-md-3">
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="fa-solid fa-filter me-2"></i>Filters</h5>
             </div>
             <div class="card-body">
-                <p class="text-muted">Select filters below to download an Excel report. Leave filters empty to download all records.</p>
-                
-                <form id="reportForm">
+                <form id="filterForm" action="/reports" method="get">
+                    
+                    <!-- Event Filter -->
                     <div class="mb-3">
-                        <label for="eventSelect" class="form-label">Filter by Event:</label>
-                        <select id="eventSelect" class="form-select">
-                            <option value="">-- All Events --</option>
+                        <label class="fw-bold">Events</label>
+                        <small class="text-muted d-block mb-1">Hold Ctrl/Cmd to select multiple</small>
+                        <select name="event_ids" class="form-select" multiple size="6">
                             {% for e in events %}
-                            <option value="{{ e.id }}">{{ e.name }} ({{ e.start_time.strftime('%Y-%m-%d') }})</option>
+                            <option value="{{ e.id }}" {% if e.id|string in selected_events %}selected{% endif %}>
+                                {{ e.name }} ({{ e.start_time.strftime('%m-%d-%Y') }})
+                            </option>
                             {% endfor %}
                         </select>
                     </div>
 
+                    <!-- User Filter -->
                     <div class="mb-3">
-                        <label for="userSelect" class="form-label">Filter by Specific User:</label>
-                        <select id="userSelect" class="form-select">
-                            <option value="">-- All Users --</option>
+                        <label class="fw-bold">Members</label>
+                        <small class="text-muted d-block mb-1">Hold Ctrl/Cmd to select multiple</small>
+                        <select name="user_ids" class="form-select" multiple size="8">
                             {% for u in users %}
-                            <option value="{{ u.id }}">{{ u.name }} ({{ u.english_name }})</option>
+                            <option value="{{ u.id }}" {% if u.id in selected_users %}selected{% endif %}>
+                                {{ u.name }} ({{ u.english_name }})
+                            </option>
                             {% endfor %}
                         </select>
                     </div>
-
-                    <hr>
 
                     <div class="d-grid gap-2">
-                        <button type="button" id="downloadBtn" class="btn btn-success btn-lg">
-                            Download Excel Report
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fa-solid fa-magnifying-glass"></i> Apply Filters
                         </button>
+                        <a href="/reports" class="btn btn-outline-secondary">Clear All</a>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- Download Card -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fa-solid fa-download me-2"></i>Download</h5>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted">Export currently filtered data.</p>
+                <div class="d-grid gap-2">
+                    <button onclick="downloadReport('excel')" class="btn btn-success">
+                        <i class="fa-solid fa-file-excel"></i> Export to Excel
+                    </button>
+                    <button onclick="downloadReport('pdf')" class="btn btn-danger">
+                        <i class="fa-solid fa-file-pdf"></i> Export to PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Side: Data Table -->
+    <div class="col-md-9">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">Attendance Records</h4>
+                <span class="badge bg-primary">{{ attendance_records|length }} Records Found</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height: 700px; overflow-y: auto;">
+                    <table class="table table-hover table-striped mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>Event Name</th>
+                                <th>Member Name</th>
+                                <th>Method</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if attendance_records %}
+                                {% for r in attendance_records %}
+                                <tr>
+                                    <td>{{ r.timestamp.strftime('%m-%d-%Y %I:%M %p') }}</td>
+                                    <td>{{ r.event.name }}</td>
+                                    <td>
+                                        <strong>{{ r.user.english_name }}</strong><br>
+                                        <small class="text-muted">{{ r.user.name }}</small>
+                                    </td>
+                                    <td>
+                                        {% if r.method == 'FACE' %}
+                                            <span class="badge bg-primary"><i class="fa-solid fa-face-smile"></i> Face</span>
+                                        {% elif r.method == 'QR' %}
+                                            <span class="badge bg-dark"><i class="fa-solid fa-qrcode"></i> QR</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Manual</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-5 text-muted">
+                                        <i class="fa-solid fa-clipboard-list fa-2x mb-3"></i><br>
+                                        No records found matching your filters.
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    document.getElementById('downloadBtn').addEventListener('click', function() {
-        const eventId = document.getElementById('eventSelect').value;
-        const userId = document.getElementById('userSelect').value;
-
-        // We build the URL manually to avoid sending empty strings to the integer API
-        let url = '/api/download_report?';
+    function downloadReport(format) {
+        // Get the current form data (filters)
+        const form = document.getElementById('filterForm');
+        const formData = new FormData(form);
         
-        const params = [];
-        if (eventId) params.push('event_id=' + eventId);
-        if (userId) params.push('user_id=' + userId);
+        // Build query string manually to handle multiple selects properly
+        const params = new URLSearchParams();
+        
+        // Append event IDs
+        const eventSelect = form.querySelector('select[name="event_ids"]');
+        Array.from(eventSelect.selectedOptions).forEach(option => {
+            params.append('event_ids', option.value);
+        });
 
-        // Redirect browser to the download URL
-        window.location.href = url + params.join('&');
-    });
+        // Append user IDs
+        const userSelect = form.querySelector('select[name="user_ids"]');
+        Array.from(userSelect.selectedOptions).forEach(option => {
+            params.append('user_ids', option.value);
+        });
+
+        params.append('format', format);
+
+        // Redirect to download
+        window.location.href = `/api/download_report?${params.toString()}`;
+    }
 </script>
 
 {% endblock %}

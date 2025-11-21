@@ -1,0 +1,72 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-4">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">Login</div>
+            <div class="card-body">
+                
+                <!-- Error Alert Box (Hidden by default) -->
+                <div id="loginError" class="alert alert-danger d-none" role="alert">
+                    <i class="fa-solid fa-circle-exclamation me-2"></i> Incorrect username or password.
+                </div>
+
+                <form id="loginForm">
+                    <div class="mb-3">
+                        <label>English Name (Username)</label>
+                        <input type="text" name="username" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Password</label>
+                        <input type="password" name="password" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100" id="loginBtn">Login</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+        e.preventDefault(); // Stop standard submission
+        
+        const formData = new FormData(this);
+        const btn = document.getElementById('loginBtn');
+        const errorBox = document.getElementById('loginError');
+        
+        // Reset UI
+        btn.disabled = true;
+        btn.innerText = "Logging in...";
+        errorBox.classList.add('d-none');
+
+        try {
+            const response = await fetch('/token', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                // Success! Redirect manually since we intercepted the form
+                window.location.href = response.url; 
+            } else {
+                // Failed
+                const data = await response.json();
+                errorBox.classList.remove('d-none');
+                errorBox.innerHTML = `<i class="fa-solid fa-circle-exclamation me-2"></i> ${data.detail || 'Login failed'}`;
+                
+                // Clear password field
+                this.querySelector('input[name="password"]').value = '';
+                
+                btn.disabled = false;
+                btn.innerText = "Login";
+            }
+        } catch (err) {
+            errorBox.classList.remove('d-none');
+            errorBox.innerText = "Network Error. Please try again.";
+            btn.disabled = false;
+            btn.innerText = "Login";
+        }
+    });
+</script>
+{% endblock %}

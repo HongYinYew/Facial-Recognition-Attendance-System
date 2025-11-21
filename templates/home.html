@@ -4,7 +4,7 @@
 <div class="row mb-3">
     <div class="col-12">
         <h2 class="fw-bold">Dashboard Overview</h2>
-        <p class="text-muted">System statistics for {{ request.headers.get('date') }}</p>
+        <p class="text-muted">System statistics for {{ date }}</p>
     </div>
 </div>
 
@@ -35,15 +35,16 @@
             </div>
         </div>
     </div>
+    
     <div class="col-md-4">
         <div class="card p-3 h-100 border-start border-4 border-warning">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <p class="text-muted mb-1">Upcoming Events</p>
-                    <h3 class="fw-bold">{{ upcoming_events }}</h3>
+                    <p class="text-muted mb-1">Events Today</p>
+                    <h3 class="fw-bold">{{ events_today }}</h3>
                 </div>
                 <div class="bg-warning bg-opacity-10 p-3 rounded-circle text-warning">
-                    <i class="fa-solid fa-clock fa-xl"></i>
+                    <i class="fa-solid fa-calendar-day fa-xl"></i>
                 </div>
             </div>
         </div>
@@ -82,7 +83,7 @@
             labels: ['Total Members', 'Present Today'],
             datasets: [{
                 label: 'Users',
-                data: ["{{ total_members }}", "{{ attendance_today }}"],
+                data: ['{{ total_members }}', '{{ attendance_today }}'],
                 backgroundColor: ['#e9ecef', '#198754'],
                 borderRadius: 5
             }]
@@ -93,14 +94,15 @@
         }
     });
 
-    // 2. Doughnut Chart: Events
+    // 2. Doughnut Chart: Events (FIXED)
     const ctx2 = document.getElementById('eventChart').getContext('2d');
     new Chart(ctx2, {
         type: 'doughnut',
         data: {
-            labels: ['Upcoming', 'Passed'],
+            labels: ['Upcoming', 'Past'],
             datasets: [{
-                data: ["{{ upcoming_events }}", "{{ passed_events }}"],
+                // Use variables passed from main.py
+                data: ['{{ upcoming_events }}', '{{ past_events }}'],
                 backgroundColor: ['#ffc107', '#6c757d'],
                 hoverOffset: 4
             }]

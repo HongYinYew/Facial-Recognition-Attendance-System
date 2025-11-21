@@ -55,20 +55,23 @@
         e.preventDefault();
         
         const formData = new FormData(this);
-        // Use the fetch API to send data so we can catch errors
-        const response = await fetch('/api/edit_event/{{ event.id }}', {
-            method: 'POST',
-            body: formData
-        });
+        try {
+            const response = await fetch('/api/edit_event/{{ event.id }}', {
+                method: 'POST',
+                body: formData
+            });
 
-        const result = await response.json();
+            const result = await response.json();
 
-        if (response.ok) {
-            alert("Event Updated Successfully!");
-            window.location.href = "/admin";
-        } else {
-            // Show the clash error
-            alert("Error: " + result.message);
+            if (response.ok) {
+                showToast("Event Updated Successfully!", "success");
+                setTimeout(() => window.location.href = "/admin", 1000);
+            } else {
+                // Show the clash error or other errors
+                showToast(result.message, "danger");
+            }
+        } catch (e) {
+            showToast("Network Error", "danger");
         }
     });
 </script>

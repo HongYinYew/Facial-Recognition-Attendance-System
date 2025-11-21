@@ -12,21 +12,37 @@
         </div>
     </div>
 
+    <!-- LEFT COLUMN: User Management -->
     <div class="col-md-6">
-        <div class="card shadow-sm">
-            <div class="card-header bg-dark text-white">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Manage Users</h5>
+                <span class="badge bg-light text-dark">{{ users|length }} Members</span>
             </div>
-            <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
-                <table class="table table-striped mb-0">
-                    <thead><tr><th>Name</th><th>Eng Name</th><th>Action</th></tr></thead>
+            
+            <div class="p-2 border-bottom">
+                <input type="text" id="userSearch" class="form-control" placeholder="Search users...">
+            </div>
+
+            <div class="card-body p-0" style="max-height: 600px; overflow-y: auto;">
+                <table class="table table-striped mb-0" id="userTable">
+                    <thead class="table-light sticky-top">
+                        <tr>
+                            <th>Name</th>
+                            <th>Eng Name</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
                     <tbody>
                         {% for u in users %}
                         <tr>
                             <td>{{ u.name }}</td>
                             <td>{{ u.english_name }}</td>
-                            <td>
-                                <a href="/admin/edit_user/{{ u.id }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                            <td class="text-end">
+                                <a href="/admin/edit_user/{{ u.id }}" class="btn btn-sm btn-outline-primary me-1">Edit</a>
+                                <button class="btn btn-sm btn-danger" onclick="deleteUser('{{ u.id }}', '{{ u.english_name }}')">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
                             </td>
                         </tr>
                         {% endfor %}
@@ -36,28 +52,178 @@
         </div>
     </div>
 
+    <!-- RIGHT COLUMN: Event Management -->
     <div class="col-md-6">
-        <div class="card shadow-sm">
-            <div class="card-header bg-dark text-white">
-                <h5 class="mb-0">Manage Events (Recent)</h5>
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Manage Events</h5>
+                <span class="badge bg-light text-dark">{{ upcoming_events|length + past_events|length }} Total</span>
             </div>
+
+            <div class="p-2 border-bottom bg-white">
+                <input type="text" id="eventSearch" class="form-control" placeholder="Search upcoming or past events...">
+            </div>
+
+            <div class="card-header bg-white p-0 border-bottom">
+                <ul class="nav nav-tabs nav-fill border-0" id="eventTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active fw-bold rounded-0 border-0 border-bottom border-primary border-3" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcoming" type="button" role="tab">
+                            Upcoming ({{ upcoming_events|length }})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-bold text-secondary rounded-0 border-0" id="past-tab" data-bs-toggle="tab" data-bs-target="#past" type="button" role="tab">
+                            Past Events
+                        </button>
+                    </li>
+                </ul>
+            </div>
+
             <div class="card-body p-0">
-                <table class="table table-striped mb-0">
-                    <thead><tr><th>Event</th><th>Date</th><th>Action</th></tr></thead>
-                    <tbody>
-                        {% for e in events %}
-                        <tr>
-                            <td>{{ e.name }}</td>
-                            <td>{{ e.start_time.strftime('%Y-%m-%d') }}</td>
-                            <td>
-                                <a href="/admin/edit_event/{{ e.id }}" class="btn btn-sm btn-outline-primary">Edit</a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                <div class="tab-content" id="eventTabsContent">
+                    
+                    <!-- TAB 1: Upcoming Events -->
+                    <div class="tab-pane fade show active" id="upcoming" role="tabpanel">
+                        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                            <table class="table table-hover mb-0 event-table">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Event Name</th>
+                                        <th>Date & Time</th>
+                                        <th class="text-end">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if upcoming_events %}
+                                        {% for e in upcoming_events %}
+                                        <tr>
+                                            <td class="fw-bold text-primary">{{ e.name }}</td>
+                                            <td>
+                                                {{ e.start_time.strftime('%m-%d-%Y') }}<br>
+                                                <small class="text-muted">{{ e.start_time.strftime('%I:%M %p') }}</small>
+                                            </td>
+                                            <td class="text-end">
+                                                <a href="/admin/edit_event/{{ e.id }}" class="btn btn-sm btn-outline-primary me-1">Edit</a>
+                                                <button class="btn btn-sm btn-danger" onclick="deleteEvent('{{ e.id }}', '{{ e.name }}')">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr><td colspan="3" class="text-center text-muted py-4">No upcoming events found.</td></tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: Past Events -->
+                    <div class="tab-pane fade" id="past" role="tabpanel">
+                        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                            <table class="table table-striped mb-0 event-table" style="opacity: 0.8">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Event Name</th>
+                                        <th>Date</th>
+                                        <th class="text-end">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for e in past_events %}
+                                    <tr>
+                                        <td>{{ e.name }}</td>
+                                        <td>{{ e.start_time.strftime('%m-%d-%Y') }}</td>
+                                        <td class="text-end">
+                                            <a href="/admin/edit_event/{{ e.id }}" class="btn btn-sm btn-outline-secondary me-1">Edit</a>
+                                            <button class="btn btn-sm btn-outline-danger" onclick="deleteEvent('{{ e.id }}', '{{ e.name }}')">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    // Tab UI Fix
+    const tabEls = document.querySelectorAll('button[data-bs-toggle="tab"]');
+    tabEls.forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function (event) {
+            const activeClasses = ['text-primary', 'border-bottom', 'border-primary', 'border-3'];
+            const inactiveClasses = ['text-secondary'];
+            event.target.classList.add(...activeClasses);
+            event.target.classList.remove(...inactiveClasses);
+            if (event.relatedTarget) {
+                event.relatedTarget.classList.remove(...activeClasses);
+                event.relatedTarget.classList.add(...inactiveClasses);
+            }
+        });
+    });
+
+    // Search Users
+    document.getElementById('userSearch').addEventListener('keyup', function() {
+        const filter = this.value.toLowerCase();
+        const rows = document.querySelectorAll('#userTable tbody tr');
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            row.style.display = text.includes(filter) ? '' : 'none';
+        });
+    });
+
+    // Search Events
+    document.getElementById('eventSearch').addEventListener('keyup', function() {
+        const filter = this.value.toLowerCase();
+        const rows = document.querySelectorAll('.event-table tbody tr');
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            row.style.display = text.includes(filter) ? '' : 'none';
+        });
+    });
+
+    // Delete User
+    async function deleteUser(id, name) {
+        // Using standard confirm for critical delete action is often safer, but showing result via toast
+        if(!confirm(`Are you sure you want to delete user: ${name}?\nThis will remove all their attendance records and face data.`)) return;
+        
+        try {
+            const res = await fetch(`/api/delete_user/${id}`, {method: 'POST'});
+            const data = await res.json();
+            if(data.status === 'success') {
+                showToast("User Deleted Successfully", "success");
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showToast(data.message, "danger");
+            }
+        } catch (e) {
+            showToast("Delete failed: Network Error", "danger");
+        }
+    }
+
+    // Delete Event
+    async function deleteEvent(id, name) {
+        if(!confirm(`Are you sure you want to delete event: ${name}?\nThis will delete all attendance records for this event.`)) return;
+        
+        try {
+            const res = await fetch(`/api/delete_event/${id}`, {method: 'POST'});
+            const data = await res.json();
+            if(data.status === 'success') {
+                showToast("Event Deleted Successfully", "success");
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showToast(data.message, "danger");
+            }
+        } catch (e) {
+            showToast("Delete failed: Network Error", "danger");
+        }
+    }
+</script>
 {% endblock %}

@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+
 {% block content %}
 
 <div class="row justify-content-center">
@@ -11,17 +11,18 @@
             <div class="card-body">
                 <div class="row">
                     
+                    <!-- Step 1: Select User -->
                     <div class="col-md-5 border-end">
                         <h5 class="text-muted mb-3">1. Select User</h5>
-                        <div class="alert alert-info small">
-                            <i class="fa-solid fa-info-circle"></i> You can enroll the same user multiple times (Stacking) to improve accuracy from different angles.
-                        </div>
+                        
+                        <!-- Search Box -->
+                        <input type="text" id="memberSearch" class="form-control mb-2" placeholder="Type name to filter list...">
+                        
                         <div class="mb-3">
-                            <label class="form-label">Search Member:</label>
                             <select id="userSelect" class="form-select" size="12">
                                 {% for u in users %}
                                 <option value="{{ u.id }}">
-                                    {{ u.english_name }} ({{ u.name }}) 
+                                    {{ u.name }} ({{ u.english_name }}) 
                                     — {{ u.faces|length }} enrolled
                                 </option>
                                 {% endfor %}
@@ -29,6 +30,7 @@
                         </div>
                     </div>
 
+                    <!-- Step 2: Capture Face -->
                     <div class="col-md-7">
                         <h5 class="text-muted mb-3">2. Add Face Angle</h5>
                         
@@ -62,6 +64,17 @@
     const userSelect = document.getElementById('userSelect');
     const btn = document.getElementById('captureUpdateBtn');
     const msgArea = document.getElementById('msgArea');
+
+    // Search Filter Logic
+    document.getElementById('memberSearch').addEventListener('keyup', function() {
+        const filter = this.value.toLowerCase();
+        const options = userSelect.getElementsByTagName('option');
+        
+        for (let i = 0; i < options.length; i++) {
+            const text = options[i].text.toLowerCase();
+            options[i].style.display = text.includes(filter) ? '' : 'none';
+        }
+    });
 
     // Enable button logic
     userSelect.addEventListener('change', () => {
@@ -97,6 +110,11 @@
     btn.addEventListener('click', () => {
         if (!video.videoWidth) return;
 
+        // UI Feedback: Disable button immediately
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+        msgArea.innerHTML = '<div class="alert alert-info">Analyzing face... please wait.</div>';
+
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         canvas.getContext('2d').drawImage(video, 0, 0);
@@ -106,21 +124,27 @@
             formData.append('user_id', userSelect.value);
             formData.append('image_file', blob, 'face_update.jpg');
 
-            msgArea.innerHTML = '<div class="alert alert-info">Stacking new angle...</div>';
-
             try {
                 const res = await fetch('/api/update_face', { method: 'POST', body: formData });
                 const data = await res.json();
                 
                 if (data.status === 'success') {
                     msgArea.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
-                    // Optional: Reload page to update the count in the list
+                    showToast("Face Enrolled Successfully!", "success");
+                    btn.innerText = "Success! Reloading...";
                     setTimeout(() => location.reload(), 1500);
                 } else {
                     msgArea.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+                    showToast(data.message, "danger");
+                    // Re-enable button on error
+                    btn.disabled = false;
+                    btn.innerText = "Try Again";
                 }
             } catch (e) {
-                msgArea.innerHTML = `<div class="alert alert-danger">Network Error</div>`;
+                msgArea.innerHTML = `<div class="alert alert-danger">Network/Server Error</div>`;
+                showToast("Network Error", "danger");
+                btn.disabled = false;
+                btn.innerText = "Try Again";
             }
         }, 'image/jpeg', 0.8);
     });

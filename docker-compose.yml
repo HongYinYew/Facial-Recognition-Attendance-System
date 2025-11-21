@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # Service 1: The Web Application (FastAPI)
+  web:
+    build: .
+    container_name: attendance_app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_NAME=attendance_db
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+    volumes:
+      - .:/app  # Syncs your code changes to container instantly
+    restart: always
+
+  # Service 2: The Database (PostgreSQL + pgvector)
+  db:
+    image: pgvector/pgvector:pg16  # Specialized image with Vector support pre-installed
+    container_name: attendance_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: attendance_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  postgres_data:

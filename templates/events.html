@@ -1,81 +1,219 @@
 {% extends "layout.html" %}
 {% block content %}
-<h2>Events Dashboard</h2>
-<hr>
+<div class="row mb-3">
+    <div class="col-12">
+        <h2><i class="fa-solid fa-calendar-days me-2"></i>Events Management</h2>
+    </div>
+</div>
+
 <div class="row">
-    <div class="col-md-6">
-        <h4>Create Event</h4>
-        <form id="eventForm">
-            <div class="mb-2">
-                <label>Event Name</label>
-                <input type="text" name="name" class="form-control" required>
+    <!-- CREATE EVENT CARD -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm sticky-top" style="top: 90px; z-index: 100;">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fa-solid fa-plus me-2"></i>Create Event</h5>
             </div>
-            <div class="row">
-                <div class="col">
-                    <label>Date</label>
-                    <input type="date" name="date" class="form-control" required>
-                </div>
-                <div class="col">
-                    <label>Time</label>
-                    <input type="time" name="time" class="form-control" required>
-                </div>
+            <div class="card-body">
+                <form id="eventForm">
+                    <div class="mb-2">
+                        <label class="fw-bold">Event Name</label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g. Sunday Service" required>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col">
+                            <label class="fw-bold">Date</label>
+                            <input type="date" name="date" class="form-control" required>
+                        </div>
+                        <div class="col">
+                            <label class="fw-bold">Time</label>
+                            <input type="time" name="time" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="fw-bold">Duration (Minutes)</label>
+                        <input type="number" name="duration_min" class="form-control" value="60">
+                    </div>
+                    <div class="mb-3">
+                        <label class="fw-bold">Venue</label>
+                        <select name="venue" class="form-select" id="venueSelect">
+                            <option>Sanctuary</option>
+                            <option>Parish</option>
+                            <option>Chapel 1</option>
+                            <option>Chapel 2</option>
+                            <option>Canteen</option>
+                            <option>BB Room</option>
+                            <option>Outdoor</option>
+                            <option>Others</option>
+                        </select>
+                    </div>
+                    <div class="mb-3 d-none" id="otherInput">
+                        <label>Specify Venue</label>
+                        <input type="text" name="venue_other" class="form-control" placeholder="Enter venue name">
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary" id="createEventBtn">
+                            <i class="fa-solid fa-check"></i> Create Event
+                        </button>
+                    </div>
+                </form>
             </div>
-            <div class="mb-2">
-                <label>Duration (Minutes)</label>
-                <input type="number" name="duration_min" class="form-control" value="60">
-            </div>
-            <div class="mb-2">
-                <label>Venue</label>
-                <select name="venue" class="form-select" id="venueSelect">
-                    <option>Sanctuary</option>
-                    <option>Parish</option>
-                    <option>Chapel 1</option>
-                    <option>Chapel 2</option>
-                    <option>Canteen</option>
-                    <option>BB Room</option>
-                    <option>Outdoor</option>
-                    <option>Others</option>
-                </select>
-            </div>
-            <div class="mb-2 d-none" id="otherInput">
-                <label>Specify Other Venue</label>
-                <input type="text" name="venue_other" class="form-control">
-            </div>
-            <button type="submit" class="btn btn-primary mt-2">Create Event</button>
-        </form>
+        </div>
     </div>
     
-    <div class="col-md-6">
-        <h4>Event List (Click to Launch)</h4>
-        <div class="list-group">
-            {% for e in events %}
-            <div class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                    <strong>{{e.name}}</strong><br>
-                    <small>{{e.venue}} | {{e.start_time}}</small>
+    <!-- EVENTS LIST CARD (WITH TABS) -->
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white p-0">
+                <!-- Search Bar -->
+                <div class="p-2 border-bottom">
+                    <input type="text" id="eventSearch" class="form-control" placeholder="Search events...">
                 </div>
-                <div>
-                    <a href="/manual/{{e.id}}" class="btn btn-sm btn-secondary">Manual</a>
-                    <a href="/attendance/{{e.id}}" class="btn btn-sm btn-success">Launch Camera</a>
+                
+                <!-- TABS -->
+                <ul class="nav nav-tabs nav-fill border-0" id="eventTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active fw-bold rounded-0 border-0 border-bottom border-primary border-3 text-primary" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcoming" type="button" role="tab">
+                            Upcoming ({{ upcoming_events|length }})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-bold text-secondary rounded-0 border-0" id="past-tab" data-bs-toggle="tab" data-bs-target="#past" type="button" role="tab">
+                            Past Events
+                        </button>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="card-body p-0">
+                <div class="tab-content" id="eventTabsContent">
+                    
+                    <!-- TAB 1: UPCOMING -->
+                    <div class="tab-pane fade show active" id="upcoming" role="tabpanel">
+                        <div class="list-group list-group-flush event-list" style="max-height: 600px; overflow-y: auto;">
+                            {% if upcoming_events %}
+                                {% for e in upcoming_events %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center event-item">
+                                    <div>
+                                        <strong class="text-primary">{{e.name}}</strong><br>
+                                        <small class="text-muted">
+                                            <i class="fa-regular fa-calendar"></i> {{ e.start_time.strftime('%m-%d-%Y') }} 
+                                            <i class="fa-regular fa-clock ms-2"></i> {{ e.start_time.strftime('%I:%M %p') }}
+                                            <br>
+                                            <i class="fa-solid fa-location-dot text-danger"></i> {{e.venue}}
+                                        </small>
+                                    </div>
+                                    <div>
+                                        <a href="/manual/{{e.id}}" class="btn btn-sm btn-outline-secondary">Manual</a>
+                                        <a href="/attendance/{{e.id}}" class="btn btn-sm btn-success"><i class="fa-solid fa-camera"></i> Launch</a>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-center py-5 text-muted">No upcoming events.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: PAST -->
+                    <div class="tab-pane fade" id="past" role="tabpanel">
+                        <div class="list-group list-group-flush event-list" style="max-height: 600px; overflow-y: auto;">
+                            {% if past_events %}
+                                {% for e in past_events %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center event-item bg-light">
+                                    <div>
+                                        <strong class="text-secondary">{{e.name}}</strong><br>
+                                        <small class="text-muted">
+                                            {{ e.start_time.strftime('%m-%d-%Y') }} | {{e.venue}}
+                                        </small>
+                                    </div>
+                                    <div>
+                                        <a href="/manual/{{e.id}}" class="btn btn-sm btn-outline-secondary">Manual</a>
+                                        <a href="/attendance/{{e.id}}" class="btn btn-sm btn-success"><i class="fa-solid fa-camera"></i> Launch</a>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-center py-5 text-muted">No past events found.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
                 </div>
             </div>
-            {% endfor %}
         </div>
     </div>
 </div>
 
 <script>
+    // 1. Venue Toggle Logic
     document.getElementById('venueSelect').addEventListener('change', function() {
         document.getElementById('otherInput').classList.toggle('d-none', this.value !== 'Others');
     });
 
+    // 2. Tab UI Logic (Switch Colors)
+    const tabEls = document.querySelectorAll('button[data-bs-toggle="tab"]');
+    tabEls.forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function (event) {
+            const activeClasses = ['text-primary', 'border-bottom', 'border-primary', 'border-3'];
+            const inactiveClasses = ['text-secondary'];
+            event.target.classList.add(...activeClasses);
+            event.target.classList.remove(...inactiveClasses);
+            if (event.relatedTarget) {
+                event.relatedTarget.classList.remove(...activeClasses);
+                event.relatedTarget.classList.add(...inactiveClasses);
+            }
+        });
+    });
+
+    // 3. Search Filter Logic (Filters BOTH tabs)
+    document.getElementById('eventSearch').addEventListener('keyup', function() {
+        const filter = this.value.toLowerCase();
+        const items = document.querySelectorAll('.event-item');
+        items.forEach(item => {
+            const text = item.innerText.toLowerCase();
+            item.style.display = text.includes(filter) ? '' : 'none';
+        });
+    });
+
+    // 4. Create Event Logic (Robust Error Handling)
     document.getElementById('eventForm').addEventListener('submit', async function(e) {
         e.preventDefault();
+        
+        const btn = document.getElementById('createEventBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating...';
+        
         const formData = new FormData(this);
-        const response = await fetch('/api/create_event', { method: 'POST', body: formData });
-        const result = await response.json();
-        if(result.status === 'success') location.reload();
-        else alert(result.message);
+        
+        try {
+            const response = await fetch('/api/create_event', { method: 'POST', body: formData });
+            
+            // Safe JSON parsing
+            let result;
+            try {
+                result = await response.json();
+            } catch (jsonErr) {
+                throw new Error("Server returned invalid response (Internal Error)");
+            }
+            
+            if(response.ok && result.status === 'success') {
+                showToast("Event created successfully!", "success");
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                // Show backend error (e.g., Venue Clash)
+                showToast(result.message || "Failed to create event", "danger");
+                resetButton();
+            }
+        } catch (err) {
+            console.error(err);
+            showToast("Network Error: " + err.message, "danger");
+            resetButton();
+        }
+
+        function resetButton() {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> Create Event';
+        }
     });
 </script>
 {% endblock %}
