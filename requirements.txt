@@ -14,3 +14,4 @@ face_recognition
 jinja2
 reportlab
 openpyxl
+pymysql
