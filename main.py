@@ -68,7 +68,7 @@ except Exception as e:
 # --- APP SETUP ---
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/templates", StaticFiles(directory="templates"), name="templates")
 
 # --- WEBSOCKET MANAGER ---
 class ConnectionManager:
