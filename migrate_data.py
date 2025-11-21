@@ -12,7 +12,7 @@ from models import Base, User, Event, Attendance, UserFace
 # OLD DB: MySQL (Adjust user/pass/db name if needed)
 OLD_DB_URL = "mysql+pymysql://root:123456@192.168.2.3/fras_dev"
 # NEW DB: PostgreSQL (Docker)
-NEW_DB_URL = "postgresql+psycopg://postgres:password@localhost:5432/attendance_db"
+NEW_DB_URL = "postgresql+psycopg://db:password@localhost:5432/attendance_db"
 
 # 2. SETUP CONNECTIONS
 old_engine = create_engine(OLD_DB_URL)
