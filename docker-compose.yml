@@ -1,9 +1,8 @@
-version: '3.8'
-
 services:
   # Service 1: The Web Application (FastAPI)
   web:
     build: .
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
     container_name: attendance_app
     ports:
       - "8000:8000"
