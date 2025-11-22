@@ -43,7 +43,8 @@ def verify_password(plain, hashed):
     if plain is None: return False
     return pwd_context.verify(plain[:72], hashed)
 
-def get_password_hash(password): return pwd_context.hash(password)
+def get_password_hash(password): 
+    return pwd_context.hash(password)
 
 def create_access_token(data: dict):
     to_encode = data.copy()
@@ -93,7 +94,7 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-# --- DEPENDENCIES ---
+# --- FUNCTIONS ---
 def get_db():
     db = SessionLocal()
     try: yield db
@@ -118,7 +119,6 @@ async def get_current_user_from_cookie(request: Request, db: Session = Depends(g
         return await get_current_user(param, db)
     except: return None
 
-# NEW: Dependency to check for Admin status
 async def get_current_admin_user(user: User = Depends(get_current_user_from_cookie)):
     if not user: return None # Will trigger redirect in route
     if not user.is_admin: return None # Treat non-admin as unauthorized for protected routes
@@ -186,21 +186,7 @@ async def home(
         "date": datetime.now().strftime("%m-%d-%Y")
     })
 
-# PROTECTED: ADMIN ONLY
-@app.get("/admin", response_class=HTMLResponse)
-async def admin_hub(request: Request, user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
-    if not user: return RedirectResponse("/") # Redirect non-admins to Dashboard
-    
-    users = db.query(User).order_by(User.name.asc()).all()
-    now = datetime.now()
-    upcoming_events = db.query(Event).filter(Event.start_time >= now).order_by(Event.start_time.asc()).all()
-    past_events = db.query(Event).filter(Event.start_time < now).order_by(Event.start_time.desc()).all()
-    
-    return templates.TemplateResponse("admin_hub.html", {
-        "request": request, "users": users, "upcoming_events": upcoming_events, "past_events": past_events, "user": user
-    })
-
-# PROTECTED: ADMIN ONLY
+# PROTECTED: LOGIN REQUIRED
 @app.get("/events", response_class=HTMLResponse)
 async def events_panel(
     request: Request, 
@@ -222,11 +208,41 @@ async def events_panel(
         "user": user
     })
 
-# PROTECTED: ADMIN ONLY
+# PROTECTED: LOGIN REQUIRED
 @app.get("/register", response_class=HTMLResponse)
 async def register_page(request: Request, user: User = Depends(get_current_admin_user)):
     if not user: return RedirectResponse("/")
     return templates.TemplateResponse("register.html", {"request": request, "user": user})
+
+# PROTECTED: LOGIN REQUIRED
+@app.get("/manual/{event_id}", response_class=HTMLResponse)
+async def manual_page(request: Request, event_id: int, user: User = Depends(get_current_user_from_cookie), db: Session = Depends(get_db)):
+    if not user: return RedirectResponse("/")
+    event = db.query(Event).filter(Event.id == event_id).first()
+    users = db.query(User).order_by(User.name.asc()).all()
+    attended_ids = [a.user_id for a in db.query(Attendance).filter(Attendance.event_id == event_id).all()]
+    return templates.TemplateResponse("manual.html", {"request": request, "event": event, "users": users, "attended_ids": attended_ids, "user": user})
+
+# PROTECTED: LOGIN REQUIRED
+@app.get("/attendance/{event_id}", response_class=HTMLResponse)
+async def attendance_page(request: Request, event_id: int, user: User = Depends(get_current_user_from_cookie), db: Session = Depends(get_db)):
+    if not user: return RedirectResponse("/")
+    event = db.query(Event).filter(Event.id == event_id).first()
+    return templates.TemplateResponse("attendance.html", {"request": request, "event": event, "user": user})
+
+# PROTECTED: ADMIN ONLY
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_hub(request: Request, user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
+    if not user: return RedirectResponse("/") # Redirect non-admins to Dashboard
+    
+    users = db.query(User).order_by(User.name.asc()).all()
+    now = datetime.now()
+    upcoming_events = db.query(Event).filter(Event.start_time >= now).order_by(Event.start_time.asc()).all()
+    past_events = db.query(Event).filter(Event.start_time < now).order_by(Event.start_time.desc()).all()
+    
+    return templates.TemplateResponse("admin_hub.html", {
+        "request": request, "users": users, "upcoming_events": upcoming_events, "past_events": past_events, "user": user
+    })
 
 # PROTECTED: ADMIN ONLY
 @app.get("/reports", response_class=HTMLResponse)
@@ -261,46 +277,20 @@ async def report_page(
     })
 
 # PROTECTED: ADMIN ONLY
-@app.get("/manual/{event_id}", response_class=HTMLResponse)
-async def manual_page(request: Request, event_id: int, user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
-    if not user: return RedirectResponse("/")
-    event = db.query(Event).filter(Event.id == event_id).first()
-    users = db.query(User).order_by(User.name.asc()).all()
-    attended_ids = [a.user_id for a in db.query(Attendance).filter(Attendance.event_id == event_id).all()]
-    return templates.TemplateResponse("manual.html", {"request": request, "event": event, "users": users, "attended_ids": attended_ids, "user": user})
-
-# PROTECTED: ADMIN ONLY
-@app.get("/attendance/{event_id}", response_class=HTMLResponse)
-async def attendance_page(request: Request, event_id: int, user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
-    if not user: return RedirectResponse("/")
-    event = db.query(Event).filter(Event.id == event_id).first()
-    return templates.TemplateResponse("attendance.html", {"request": request, "event": event, "user": user})
-
-# PROTECTED: ADMIN ONLY
 @app.get("/admin/enroll_face", response_class=HTMLResponse)
 async def enroll_face_page(request: Request, user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
     if not user: return RedirectResponse("/")
     users = db.query(User).order_by(User.name.asc()).all()
     return templates.TemplateResponse("enroll_face.html", {"request": request, "users": users, "user": user})
 
-# --- EDIT & DELETE ACTIONS (ADMIN ONLY) ---
+# PROTECTED: ADMIN ONLY
 @app.get("/admin/edit_user/{user_id}", response_class=HTMLResponse)
 async def edit_user_page(request: Request, user_id: str, user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
     if not user: return RedirectResponse("/")
     target_user = db.query(User).filter(User.id == user_id).first()
     return templates.TemplateResponse("edit_user.html", {"request": request, "user": target_user, "current_user": user})
 
-@app.post("/api/edit_user/{user_id}")
-async def edit_user_action(user_id: str, name: str = Form(...), english_name: str = Form(...), phone: str = Form(...), user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
-    if not user: return RedirectResponse("/")
-    target_user = db.query(User).filter(User.id == user_id).first()
-    if target_user:
-        target_user.name = name
-        target_user.english_name = english_name
-        target_user.phone = phone
-        db.commit()
-    return RedirectResponse(url="/admin", status_code=303)
-
+# PROTECTED: ADMIN ONLY
 @app.get("/admin/edit_event/{event_id}", response_class=HTMLResponse)
 async def edit_event_page(request: Request, event_id: int, user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
     if not user: return RedirectResponse("/")
@@ -308,46 +298,8 @@ async def edit_event_page(request: Request, event_id: int, user: User = Depends(
     duration = int((event.end_time - event.start_time).total_seconds() / 60)
     return templates.TemplateResponse("edit_event.html", {"request": request, "event": event, "duration": duration, "user": user})
 
-@app.post("/api/edit_event/{event_id}")
-async def edit_event_action(event_id: int, name: str = Form(...), venue: str = Form(...), date: str = Form(...), time: str = Form(...), duration_min: int = Form(...), user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
-    if not user: return JSONResponse({"status": "error", "message": "Unauthorized"}, 403)
-    event = db.query(Event).filter(Event.id == event_id).first()
-    if not event: return JSONResponse({"status": "error", "message": "Not found"}, 404)
-    new_start = datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
-    new_end = new_start + timedelta(minutes=duration_min)
-    clash = db.query(Event).filter(Event.id != event_id, Event.venue == venue, Event.end_time > new_start, Event.start_time < new_end).first()
-    if clash: return JSONResponse({"status": "error", "message": "Venue Clash!"}, 400)
-    event.name = name
-    event.venue = venue
-    event.start_time = new_start
-    event.end_time = new_end
-    db.commit()
-    return JSONResponse({"status": "success", "message": "Updated"})
-
-@app.post("/api/delete_user/{user_id}")
-async def delete_user(user_id: str, user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
-    if not user: return JSONResponse({"status": "error", "message": "Unauthorized"}, 403)
-    target = db.query(User).filter(User.id == user_id).first()
-    if target:
-        db.query(Attendance).filter(Attendance.user_id == user_id).delete()
-        db.query(UserFace).filter(UserFace.user_id == user_id).delete()
-        db.delete(target)
-        db.commit()
-        return JSONResponse({"status": "success", "message": "Deleted"})
-    return JSONResponse({"status": "error", "message": "Not found"}, 404)
-
-@app.post("/api/delete_event/{event_id}")
-async def delete_event(event_id: int, user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
-    if not user: return JSONResponse({"status": "error", "message": "Unauthorized"}, 403)
-    target = db.query(Event).filter(Event.id == event_id).first()
-    if target:
-        db.query(Attendance).filter(Attendance.event_id == event_id).delete()
-        db.delete(target)
-        db.commit()
-        return JSONResponse({"status": "success", "message": "Deleted"})
-    return JSONResponse({"status": "error", "message": "Not found"}, 404)
-
-# --- ACTION APIs (ADMIN ONLY) ---
+# --- API ROUTES ---
+# PROTECTED: LOGIN REQUIRED
 @app.post("/api/create_event")
 async def create_event(
     name: str = Form(...), 
@@ -385,9 +337,10 @@ async def create_event(
     db.commit()
     return {"status": "success", "message": "Event Created Successfully"}
 
+# PROTECTED: LOGIN REQUIRED
 @app.post("/api/register_user")
-def register_user(name: str = Form(...), english_name: str = Form(...), phone: str = Form(...), image_file: UploadFile = File(None), user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
-    if not user: return JSONResponse({"status": "error", "message": "Unauthorized"}, 403)
+def register_user(name: str = Form(...), english_name: str = Form(...), phone: str = Form(...), image_file: UploadFile = File(None), user: User = Depends(get_current_user_from_cookie), db: Session = Depends(get_db)):
+    if not user: return JSONResponse({"status": "error", "message": "Not authenticated"}, 401)
     user_uuid = str(uuid.uuid4())
     new_user = User(id=user_uuid, name=name, english_name=english_name, phone=phone, has_image=False)
     db.add(new_user)
@@ -404,9 +357,10 @@ def register_user(name: str = Form(...), english_name: str = Form(...), phone: s
             db.commit()
     return {"status": "success", "uuid": user_uuid}
 
+# PROTECTED: LOGIN REQUIRED
 @app.post("/api/mark_manual")
-async def mark_manual(user_id: str = Form(...), event_id: int = Form(...), action: str = Form(...), user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
-    if not user: return JSONResponse({"status": "error", "message": "Unauthorized"}, 403)
+async def mark_manual(user_id: str = Form(...), event_id: int = Form(...), action: str = Form(...), user: User = Depends(get_current_user_from_cookie), db: Session = Depends(get_db)):
+    if not user: return JSONResponse({"status": "error", "message": "Not authenticated"}, 401)
     existing = db.query(Attendance).filter(Attendance.user_id == user_id, Attendance.event_id == event_id).first()
     if action == 'mark' and not existing:
         db.add(Attendance(user_id=user_id, event_id=event_id, method="MANUAL"))
@@ -417,10 +371,12 @@ async def mark_manual(user_id: str = Form(...), event_id: int = Form(...), actio
         db.commit()
     return {"status": "success"}
 
+# PROTECTED: LOGIN REQUIRED
 @app.post("/api/recognize_attendance")
-async def recognize_attendance(event_id: int = Form(...), image_file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def recognize_attendance(event_id: int = Form(...), image_file: UploadFile = File(...), db: Session = Depends(get_db), user: User = Depends(get_current_user_from_cookie)):
     # Note: Recognizing attendance is PUBLIC action (kiosk mode), so no admin check needed here usually.
     # If you want to restrict it to admin logged in device, add 'user: User = Depends(get_current_admin_user)'
+    if not user: return JSONResponse({"status": "error", "message": "Not authenticated"}, 401)
     contents = await image_file.read()
     nparr = np.frombuffer(contents, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -450,6 +406,61 @@ async def recognize_attendance(event_id: int = Form(...), image_file: UploadFile
         return {"status": "info", "message": f"Already marked: {user_found.english_name}"}
     return {"status": "info", "message": "Scanning..."}
 
+# PROTECTED: ADMIN ONLY
+@app.post("/api/edit_user/{user_id}")
+async def edit_user_action(user_id: str, name: str = Form(...), english_name: str = Form(...), phone: str = Form(...), user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
+    if not user: return RedirectResponse("/")
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if target_user:
+        target_user.name = name
+        target_user.english_name = english_name
+        target_user.phone = phone
+        db.commit()
+    return RedirectResponse(url="/admin", status_code=303)
+
+# PROTECTED: ADMIN ONLY
+@app.post("/api/edit_event/{event_id}")
+async def edit_event_action(event_id: int, name: str = Form(...), venue: str = Form(...), date: str = Form(...), time: str = Form(...), duration_min: int = Form(...), user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
+    if not user: return JSONResponse({"status": "error", "message": "Unauthorized"}, 403)
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event: return JSONResponse({"status": "error", "message": "Not found"}, 404)
+    new_start = datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
+    new_end = new_start + timedelta(minutes=duration_min)
+    clash = db.query(Event).filter(Event.id != event_id, Event.venue == venue, Event.end_time > new_start, Event.start_time < new_end).first()
+    if clash: return JSONResponse({"status": "error", "message": "Venue Clash!"}, 400)
+    event.name = name
+    event.venue = venue
+    event.start_time = new_start
+    event.end_time = new_end
+    db.commit()
+    return JSONResponse({"status": "success", "message": "Updated"})
+
+# PROTECTED: ADMIN ONLY
+@app.post("/api/delete_user/{user_id}")
+async def delete_user(user_id: str, user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
+    if not user: return JSONResponse({"status": "error", "message": "Unauthorized"}, 403)
+    target = db.query(User).filter(User.id == user_id).first()
+    if target:
+        db.query(Attendance).filter(Attendance.user_id == user_id).delete()
+        db.query(UserFace).filter(UserFace.user_id == user_id).delete()
+        db.delete(target)
+        db.commit()
+        return JSONResponse({"status": "success", "message": "Deleted"})
+    return JSONResponse({"status": "error", "message": "Not found"}, 404)
+
+# PROTECTED: ADMIN ONLY
+@app.post("/api/delete_event/{event_id}")
+async def delete_event(event_id: int, user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
+    if not user: return JSONResponse({"status": "error", "message": "Unauthorized"}, 403)
+    target = db.query(Event).filter(Event.id == event_id).first()
+    if target:
+        db.query(Attendance).filter(Attendance.event_id == event_id).delete()
+        db.delete(target)
+        db.commit()
+        return JSONResponse({"status": "success", "message": "Deleted"})
+    return JSONResponse({"status": "error", "message": "Not found"}, 404)
+
+# PROTECTED: ADMIN ONLY
 @app.post("/api/update_face")
 def update_face(user_id: str = Form(...), image_file: UploadFile = File(...), user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
     if not user: return JSONResponse({"status": "error", "message": "Unauthorized"}, 403)
@@ -467,6 +478,7 @@ def update_face(user_id: str = Form(...), image_file: UploadFile = File(...), us
         return {"status": "success", "message": "Face enrolled securely."}
     return {"status": "error", "message": "No face detected. Try adjusting light."}
 
+# PROTECTED: ADMIN ONLY
 @app.get("/api/download_report")
 async def download_report(
     event_ids: List[str] = Query(None),
@@ -528,6 +540,7 @@ async def download_report(
         stream.seek(0)
         return HTMLResponse(content=stream.getvalue(), headers={'Content-Disposition': 'attachment; filename="report.pdf"'}, media_type="application/pdf")
 
+# --- WEBSOCKETS ROUTES ---
 @app.websocket("/ws/attendance/{event_id}")
 async def websocket_endpoint(websocket: WebSocket, event_id: int):
     await manager.connect(websocket, event_id)
