@@ -10,9 +10,9 @@ from models import Base, User, Event, Attendance, UserFace
 
 # 1. CONFIGURATION
 # OLD DB: MySQL (Adjust user/pass/db name if needed)
-OLD_DB_URL = "mysql+pymysql://root:123456@192.168.2.3/fras_dev"
+OLD_DB_URL = "mysql+pymysql://root:123456@localhost:3306/fras_dev"
 # NEW DB: PostgreSQL (Docker)
-NEW_DB_URL = "postgresql+psycopg://db:password@localhost:5432/attendance_db"
+NEW_DB_URL = "postgresql+psycopg://postgres:password@192.168.0.47:5432/attendance_db"
 
 # 2. SETUP CONNECTIONS
 old_engine = create_engine(OLD_DB_URL)
@@ -92,7 +92,7 @@ def migrate():
         print("✅ Migration Complete!")
 
         print("--- FIXING DATABASE SEQUENCES ---")
-        with new_conn.connect() as conn:
+        with new_engine.connect() as conn:
             # 1. Fix Events Table
             print("Fixing 'events' table sequence...")
             # This SQL gets the max ID and sets the sequence to next value
