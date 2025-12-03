@@ -3,6 +3,7 @@ import numpy as np
 import face_recognition
 import pandas as pd
 import asyncio
+import os
 import uuid
 import io
 from concurrent.futures import ProcessPoolExecutor
@@ -34,6 +35,8 @@ from pgvector.sqlalchemy import Vector
 SECRET_KEY = "CHANGE_THIS_TO_A_SUPER_SECRET_KEY"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
+FACE_BACKUP_DIR = "face_backups"
+os.makedirs(FACE_BACKUP_DIR, exist_ok=True)
 
 # --- SECURITY UTILS ---
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -347,6 +350,19 @@ def register_user(name: str = Form(...), english_name: str = Form(...), phone: s
     db.commit()
     if image_file and image_file.filename:
         contents = image_file.file.read()
+
+        try:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            safe_name = "".join([c for c in english_name if c.isalnum()])
+            filename = f"{safe_name}_{timestamp}_{user_uuid[:8]}.jpg"
+            file_path = os.path.join(FACE_BACKUP_DIR, filename)
+            
+            with open(file_path, "wb") as f:
+                f.write(contents)
+            print(f"Backup saved: {file_path}")
+        except Exception as e:
+            print(f"Failed to save backup: {e}")
+        
         nparr = np.frombuffer(contents, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         encoding = compute_embedding(img)
@@ -465,6 +481,22 @@ async def delete_event(event_id: int, user: User = Depends(get_current_admin_use
 def update_face(user_id: str = Form(...), image_file: UploadFile = File(...), user: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
     if not user: return JSONResponse({"status": "error", "message": "Unauthorized"}, 403)
     contents = image_file.file.read()
+
+    try:
+        user_target = db.query(User).filter(User.id == user_id).first()
+        user_name = user_target.english_name if user_target else "unknown"
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_name = "".join([c for c in user_name if c.isalnum()])
+        filename = f"{safe_name}_{timestamp}_{user_id[:8]}.jpg"
+        file_path = os.path.join(FACE_BACKUP_DIR, filename)
+        
+        with open(file_path, "wb") as f:
+            f.write(contents)
+        print(f"Backup saved: {file_path}")
+    except Exception as e:
+        print(f"Failed to save backup: {e}")
+
     nparr = np.frombuffer(contents, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     if not check_blur_variance(img): return {"status": "error", "message": "Image too blurry to enroll. Try again."}

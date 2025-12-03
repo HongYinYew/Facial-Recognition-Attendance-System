@@ -15,6 +15,7 @@ services:
       - DB_PASSWORD=password
     volumes:
       - .:/app  # Syncs your code changes to container instantly
+      - ./face_backups:/app/face_backups
     restart: always
 
   # Service 2: The Database (PostgreSQL + pgvector)
