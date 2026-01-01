@@ -153,8 +153,26 @@
     </div>
 </div>
 
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fa-solid fa-triangle-exclamation"></i> Confirm Deletion</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="deleteModalBody">
+                Are you sure?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-    // Tab UI Fix
+    // Tab UI Fix (Keep existing code)
     const tabEls = document.querySelectorAll('button[data-bs-toggle="tab"]');
     tabEls.forEach(tab => {
         tab.addEventListener('shown.bs.tab', function (event) {
@@ -169,7 +187,7 @@
         });
     });
 
-    // Search Users
+    // Search Logic (Keep existing code)
     document.getElementById('userSearch').addEventListener('keyup', function() {
         const filter = this.value.toLowerCase();
         const rows = document.querySelectorAll('#userTable tbody tr');
@@ -179,7 +197,6 @@
         });
     });
 
-    // Search Events
     document.getElementById('eventSearch').addEventListener('keyup', function() {
         const filter = this.value.toLowerCase();
         const rows = document.querySelectorAll('.event-table tbody tr');
@@ -189,34 +206,46 @@
         });
     });
 
-    // Delete User
-    async function deleteUser(id, name) {
-        // Using standard confirm for critical delete action is often safer, but showing result via toast
-        if(!confirm(`Are you sure you want to delete user: ${name}?\nThis will remove all their attendance records and face data.`)) return;
-        
-        try {
-            const res = await fetch(`/api/delete_user/${id}`, {method: 'POST'});
-            const data = await res.json();
-            if(data.status === 'success') {
-                showToast("User Deleted Successfully", "success");
-                setTimeout(() => location.reload(), 1000);
-            } else {
-                showToast(data.message, "danger");
-            }
-        } catch (e) {
-            showToast("Delete failed: Network Error", "danger");
-        }
+    // --- NEW DELETION LOGIC ---
+
+    let deleteTargetId = null;
+    let deleteTargetType = null; // 'user' or 'event'
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    const modalBody = document.getElementById('deleteModalBody');
+
+    // 1. Triggered when you click the trash icon for a USER
+    function deleteUser(id, name) {
+        deleteTargetId = id;
+        deleteTargetType = 'user';
+        modalBody.innerHTML = `Are you sure you want to delete user: <strong>${name}</strong>?<br><br>This will permanently remove their attendance records and facial data.`;
+        deleteModal.show();
     }
 
-    // Delete Event
-    async function deleteEvent(id, name) {
-        if(!confirm(`Are you sure you want to delete event: ${name}?\nThis will delete all attendance records for this event.`)) return;
+    // 2. Triggered when you click the trash icon for an EVENT
+    function deleteEvent(id, name) {
+        deleteTargetId = id;
+        deleteTargetType = 'event';
+        modalBody.innerHTML = `Are you sure you want to delete event: <strong>${name}</strong>?<br><br>All attendance records associated with this event will be deleted.`;
+        deleteModal.show();
+    }
+
+    // 3. Triggered when you click "Delete" inside the Modal
+    document.getElementById('confirmDeleteBtn').addEventListener('click', async function() {
+        // Hide modal immediately
+        deleteModal.hide();
         
+        if (!deleteTargetId || !deleteTargetType) return;
+
+        const url = deleteTargetType === 'user' 
+            ? `/api/delete_user/${deleteTargetId}` 
+            : `/api/delete_event/${deleteTargetId}`;
+
         try {
-            const res = await fetch(`/api/delete_event/${id}`, {method: 'POST'});
+            const res = await fetch(url, {method: 'POST'});
             const data = await res.json();
+            
             if(data.status === 'success') {
-                showToast("Event Deleted Successfully", "success");
+                showToast(`${deleteTargetType === 'user' ? 'User' : 'Event'} Deleted Successfully`, "success");
                 setTimeout(() => location.reload(), 1000);
             } else {
                 showToast(data.message, "danger");
@@ -224,6 +253,6 @@
         } catch (e) {
             showToast("Delete failed: Network Error", "danger");
         }
-    }
+    });
 </script>
 {% endblock %}
