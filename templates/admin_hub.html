@@ -40,7 +40,7 @@
                             <td>{{ u.english_name }}</td>
                             <td class="text-end">
                                 <a href="/admin/edit_user/{{ u.id }}" class="btn btn-sm btn-outline-primary me-1">Edit</a>
-                                <button class="btn btn-sm btn-danger" onclick="deleteUser('{{ u.id }}', '{{ u.english_name }}')">
+                                <button class="btn btn-sm btn-danger" onclick="deleteUser('{{ u.id }}', '{{ u.name }}')">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
                             </td>
