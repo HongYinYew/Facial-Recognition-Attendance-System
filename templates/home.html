@@ -65,7 +65,7 @@
     <div class="col-md-4">
         <div class="card h-100">
             <div class="card-header">
-                <i class="fa-solid fa-chart-pie me-2"></i>Event Status
+                <i class="fa-solid fa-id-card me-2"></i>Enrollment Status
             </div>
             <div class="card-body">
                 <canvas id="eventChart"></canvas>
@@ -99,13 +99,20 @@
     new Chart(ctx2, {
         type: 'doughnut',
         data: {
-            labels: ['Upcoming', 'Past'],
+            labels: ['Enrolled (Face)', 'Not Enrolled'],
             datasets: [{
-                // Use variables passed from main.py
-                data: ['{{ upcoming_events }}', '{{ past_events }}'],
-                backgroundColor: ['#ffc107', '#6c757d'],
+                // Use the new variables passed from main.py
+                data: ['{{ users_with_face }}', '{{ users_without_face }}'],
+                backgroundColor: ['#0d6efd', '#dc3545'], // Blue for enrolled, Red for not
                 hoverOffset: 4
             }]
+        },
+        options: {
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
         }
     });
 </script>

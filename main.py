@@ -170,21 +170,33 @@ async def home(
     user: User = Depends(get_current_user_from_cookie)
 ):
     total_members = db.query(User).count()
+    
+    # Time range for "Today"
     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     today_end = today_start + timedelta(days=1)
-    attendance_today = db.query(Attendance.user_id).filter(Attendance.timestamp >= today_start).distinct().count()
+    
+    # 1. MODIFIED: Count distinct users who attended ANY event scheduled for today
+    # We join Attendance -> Event to check the Event's start_time
+    attendance_today = db.query(Attendance.user_id)\
+        .join(Event)\
+        .filter(Event.start_time >= today_start, Event.start_time < today_end)\
+        .distinct()\
+        .count()
+
     now = datetime.now()
     events_today = db.query(Event).filter(Event.start_time >= today_start, Event.start_time < today_end).count()
-    upcoming_events = db.query(Event).filter(Event.start_time > now).count()
-    past_events = db.query(Event).filter(Event.start_time < now).count()
+    
+    # 2. NEW: Calculate Enrollment Stats for the Doughnut Chart
+    users_with_face = db.query(User).filter(User.has_image == True).count()
+    users_without_face = total_members - users_with_face
 
     return templates.TemplateResponse("home.html", {
         "request": request, 
         "total_members": total_members, 
         "attendance_today": attendance_today,
         "events_today": events_today,
-        "upcoming_events": upcoming_events,
-        "past_events": past_events,
+        "users_with_face": users_with_face,
+        "users_without_face": users_without_face,
         "user": user,
         "date": datetime.now().strftime("%m-%d-%Y")
     })
