@@ -418,8 +418,8 @@ async def recognize_attendance(event_id: int = Form(...), image_file: UploadFile
             db.add(Attendance(user_id=user_found.id, event_id=event_id, method=method))
             db.commit()
             await manager.broadcast_attendance(event_id, {"user_id": user_found.id, "status": "marked"})
-            return {"status": "success", "message": f"Welcome {user_found.english_name}", "user_name": user_found.english_name}
-        return {"status": "info", "message": f"Already marked: {user_found.english_name}"}
+            return {"status": "success", "message": f"Welcome {user_found.name}", "user_name": user_found.name}
+        return {"status": "info", "message": f"Already marked: {user_found.name}"}
     return {"status": "info", "message": "Scanning..."}
 
 # PROTECTED: ADMIN ONLY
