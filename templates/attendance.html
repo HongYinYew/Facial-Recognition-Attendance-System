@@ -102,7 +102,8 @@
                 
                 // Update Status Bar
                 statusMsg.innerText = data.message;
-                statusMsg.className = "alert fw-bold " + (data.status === 'success' ? 'alert-success' : 'alert-secondary');
+                const isSuccess = data.status === 'success' || data.message.includes("Already marked");
+                statusMsg.className = "alert fw-bold " + (isSuccess ? 'alert-success' : 'alert-secondary');
 
                 // 3. HANDLE SUCCESS POPUP LOG
                 if (data.status === 'success') {
