@@ -34,7 +34,7 @@ from pgvector.sqlalchemy import Vector
 # --- CONFIGURATION ---
 SECRET_KEY = "CHANGE_THIS_TO_A_SUPER_SECRET_KEY"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_MINUTES = 180
 FACE_BACKUP_DIR = "face_backups"
 os.makedirs(FACE_BACKUP_DIR, exist_ok=True)
 
@@ -423,7 +423,7 @@ async def recognize_attendance(event_id: int = Form(...), image_file: UploadFile
             match = db.query(UserFace).order_by(UserFace.embedding.l2_distance(embedding_list)).limit(1).first()
             if match:
                 dist = np.linalg.norm(np.array(match.embedding) - encoding)
-                if dist < 0.5: user_found = match.user; method = "FACE"
+                if dist < 0.4: user_found = match.user; method = "FACE"
     if user_found:
         existing = db.query(Attendance).filter(Attendance.user_id == user_found.id, Attendance.event_id == event_id).first()
         if not existing:
